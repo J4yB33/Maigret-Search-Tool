@@ -3,83 +3,85 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Maigret Username Search</title>
+    <title>Maigret - OSINT Username Search</title>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
     <style>
         body {
-            font-family: Arial, sans-serif;
-            margin: 0;
-            padding: 0;
-            background-color: #f4f4f9;
-            color: #333;
+            background-color: #2b2b2b;
+            color: #ffffff;
+            padding: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
         }
-        header {
-            background-color: #6200ea;
-            color: #fff;
-            padding: 1rem;
+        .main-container {
+            background-color: #1a1a1a;
+            color: #00baff;
+            border-radius: 8px;
+            box-shadow: 0 0 20px rgba(0, 186, 255, 0.7);
+            padding: 40px;
+            max-width: 600px;
+            width: 100%;
             text-align: center;
         }
-        .container {
-            max-width: 800px;
-            margin: 2rem auto;
-            padding: 1rem;
-            background: #fff;
-            border-radius: 5px;
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        .btn-primary {
+            background-color: #00baff;
+            border-color: #00baff;
         }
-        .form-group {
-            margin-bottom: 1rem;
+        .btn-primary:hover {
+            background-color: #008fc4;
+            border-color: #008fc4;
         }
-        label {
-            display: block;
-            margin-bottom: 0.5rem;
-            font-weight: bold;
+        .logo {
+            max-height: 50px;
+            margin-bottom: 20px;
         }
-        input[type="text"] {
-            width: 100%;
-            padding: 0.5rem;
-            border: 1px solid #ccc;
-            border-radius: 5px;
-        }
-        button {
-            background-color: #6200ea;
-            color: #fff;
-            border: none;
-            padding: 0.75rem 1.5rem;
-            border-radius: 5px;
-            cursor: pointer;
-        }
-        button:hover {
-            background-color: #3700b3;
-        }
-        iframe {
-            width: 100%;
-            height: 500px;
-            border: 1px solid #ccc;
-            border-radius: 5px;
+        .footer {
+            text-align: center;
+            margin-top: 20px;
+            color: #00baff;
         }
     </style>
 </head>
 <body>
-    <header>
-        <h1>Maigret Username Search</h1>
-    </header>
-    <div class="container">
+    <div class="main-container">
+        <img src="/static/logo.png" alt="Logo" class="logo">
+        <h1 class="mb-4">Maigret Username Search</h1>
         <form id="searchForm">
             <div class="form-group">
-                <label for="username">Enter Username:</label>
-                <input type="text" id="username" name="username" placeholder="e.g., johndoe" required>
+                <input type="text" class="form-control" id="username" name="username" placeholder="Enter Username (e.g., johndoe)" required>
             </div>
-            <button type="submit">Search</button>
+            <button type="submit" class="btn btn-primary btn-block">Search</button>
         </form>
-        <h2>Results:</h2>
-        <iframe id="resultsFrame" src="about:blank"></iframe>
+        <div id="results" class="mt-4"></div>
+        <div class="footer mt-4">
+            <p>For support, contact <a href="mailto:support@lcnr.solutions">support@lcnr.solutions</a></p>
+        </div>
     </div>
     <script>
-        document.getElementById('searchForm').addEventListener('submit', function(event) {
+        document.getElementById('searchForm').addEventListener('submit', async function(event) {
             event.preventDefault();
             const username = document.getElementById('username').value;
-            const resultsFrame = document.getElementById('resultsFrame');
-            resultsFrame.src = `/run_maigret?username=${encodeURIComponent(username)}`;
+            const resultsDiv = document.getElementById('results');
+            resultsDiv.innerHTML = "Running Maigret... Please wait.";
+
+            try {
+                const response = await fetch(`/run_maigret?username=${encodeURIComponent(username)}`);
+                const data = await response.json();
+
+                if (response.ok) {
+                    resultsDiv.innerHTML = `
+                        <p>${data.message}</p>
+                        <a href="${data.html_report}" class="btn btn-primary" target="_blank">Download HTML Report</a>
+                        <a href="${data.pdf_report}" class="btn btn-primary" target="_blank">Download PDF Report</a>
+                    `;
+                } else {
+                    resultsDiv.innerHTML = `<p>Error: ${data}</p>`;
+                }
+            } catch (error) {
+                resultsDiv.innerHTML = `<p>Error running Maigret: ${error.message}</p>`;
+            }
         });
     </script>
 </body>
