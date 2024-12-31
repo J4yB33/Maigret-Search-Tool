@@ -1,75 +1,84 @@
-from flask import Flask, render_template, request, jsonify, send_file
+import logging
+from flask import Flask, render_template, request, jsonify, send_from_directory
 import subprocess
 import os
-import threading
 
 app = Flask(__name__)
 
-# Track scan status
+# Set up logging
+logging.basicConfig(
+    filename="maigret_app.log",
+    level=logging.DEBUG,
+    format="%(asctime)s %(levelname)s: %(message)s",
+    datefmt="%Y-%m-%d %H:%M:%S",
+)
+logging.getLogger().addHandler(logging.StreamHandler())
+
+# Directory for output files
+BASE_DIR = "/home/student/maigret_env"
+OUTPUT_DIR = os.path.join(BASE_DIR, "output")
+
+# State to track if a scan is running
 scan_in_progress = False
-scan_lock = threading.Lock()
 
-@app.route('/')
+@app.route("/")
 def index():
-    """Serve the main page."""
-    return render_template('index.html')
+    logging.info("Index page accessed.")
+    return render_template("index.html")
 
-@app.route('/run_maigret', methods=['GET'])
+@app.route("/run_maigret", methods=["GET"])
 def run_maigret():
-    """Run Maigret scan for a given username."""
     global scan_in_progress
-
-    username = request.args.get('username')
+    username = request.args.get("username")
+    
     if not username:
-        return jsonify({"error": "Username is required."}), 400
+        logging.warning("No username provided.")
+        return jsonify({"error": "No username provided"}), 400
 
-    # Prevent concurrent scans
-    with scan_lock:
-        if scan_in_progress:
-            return jsonify({"error": "A scan is already in progress. Please wait."}), 400
-        scan_in_progress = True
+    if scan_in_progress:
+        logging.warning("Scan already in progress.")
+        return jsonify({"error": "A scan is already in progress. Please wait."}), 400
 
-    output_dir = f"output/{username}"
-    os.makedirs(output_dir, exist_ok=True)
-    command = ["maigret", username, "-a", "-HP", "--folderoutput", output_dir]
-
+    logging.info(f"Starting scan for username: {username}")
+    scan_in_progress = True
     try:
-        # Run the Maigret command
-        subprocess.run(command, capture_output=True, text=True, check=True)
+        output_dir = os.path.join(OUTPUT_DIR, username)
+        os.makedirs(output_dir, exist_ok=True)
 
-        html_report = f"{output_dir}/report_{username}_plain.html"
-        pdf_report = f"{output_dir}/report_{username}.pdf"
+        command = [
+            "maigret", username, "-a", "-HP",
+            "--folderoutput", output_dir
+        ]
 
-        # Reset the scan flag after completion
-        with scan_lock:
+        process = subprocess.run(command, text=True, capture_output=True)
+
+        if process.returncode != 0:
+            logging.error(f"Maigret failed: {process.stderr}")
             scan_in_progress = False
+            return jsonify({"error": f"Error running Maigret: {process.stderr}"}), 500
 
+        logging.info(f"Scan completed successfully for username: {username}")
+        html_report = f"/output/{username}/report_{username}_plain.html"
+        pdf_report = f"/output/{username}/report_{username}.pdf"
+        
         return jsonify({
-            "message": f"Scan for {username} completed successfully.",
+            "message": f"Scan completed for {username}",
             "html_report": html_report,
             "pdf_report": pdf_report
         })
-    except subprocess.CalledProcessError as e:
-        # Reset the scan flag in case of errors
-        with scan_lock:
-            scan_in_progress = False
-        return jsonify({"error": f"Error running Maigret: {e.stderr}"}), 500
 
-@app.route('/view_report/<path:filename>', methods=['GET'])
-def view_report(filename):
-    """Serve the HTML or PDF report for viewing."""
-    try:
-        return send_file(filename, as_attachment=False)
-    except FileNotFoundError:
-        return jsonify({"error": "Report not found."}), 404
+    except Exception as e:
+        logging.exception("Unexpected error during scan.")
+        scan_in_progress = False
+        return jsonify({"error": f"Unexpected error: {str(e)}"}), 500
+    finally:
+        scan_in_progress = False
 
-@app.route('/download_report/<path:filename>', methods=['GET'])
-def download_report(filename):
-    """Serve the HTML or PDF report for download."""
-    try:
-        return send_file(filename, as_attachment=True)
-    except FileNotFoundError:
-        return jsonify({"error": "Report not found."}), 404
+@app.route("/output/<username>/<path:filename>")
+def serve_report(username, filename):
+    logging.info(f"Serving file: {filename} for username: {username}")
+    user_output_dir = os.path.join(OUTPUT_DIR, username)
+    return send_from_directory(user_output_dir, filename)
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=True)
