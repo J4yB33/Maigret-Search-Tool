@@ -3,7 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Maigret - OSINT Username Search</title>
+    <title>Maigret Web Interface</title>
+    <link rel="icon" href="/static/lcnr.png" type="image/png">
     <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
     <style>
         body {
@@ -14,8 +15,10 @@
             align-items: center;
             justify-content: center;
             height: 100vh;
+            font-family: Arial, sans-serif;
         }
-        .main-container {
+
+        .container {
             background-color: #1a1a1a;
             color: #00baff;
             border-radius: 8px;
@@ -25,64 +28,73 @@
             width: 100%;
             text-align: center;
         }
+
         .btn-primary {
             background-color: #00baff;
             border-color: #00baff;
         }
+
         .btn-primary:hover {
             background-color: #008fc4;
             border-color: #008fc4;
         }
+
         .logo {
-            max-height: 50px;
+            max-height: 80px;
             margin-bottom: 20px;
         }
+
         .footer {
             text-align: center;
             margin-top: 20px;
             color: #00baff;
         }
+
+        .alert-danger, .alert-success {
+            margin-top: 20px;
+        }
     </style>
 </head>
 <body>
-    <div class="main-container">
+    <div class="container">
         <img src="/static/lcnr.png" alt="Logo" class="logo">
-        <h1 class="mb-4">Maigret Username Search</h1>
-        <form id="searchForm">
-            <div class="form-group">
-                <input type="text" class="form-control" id="username" name="username" placeholder="Enter Username (e.g., johndoe)" required>
-            </div>
-            <button type="submit" class="btn btn-primary btn-block">Search</button>
-        </form>
-        <div id="results" class="mt-4"></div>
-        <div class="footer mt-4">
-            <p>For support, contact <a href="mailto:support@lcnr.solutions">support@lcnr.solutions</a></p>
+        <h1 class="mb-4">Maigret Web Interface</h1>
+        <p>Run OSINT analysis with Maigret for a given username.</p>
+        <div class="form-group">
+            <input type="text" class="form-control" id="username" placeholder="Enter username" required>
         </div>
+        <button class="btn btn-primary btn-block" onclick="runMaigret()">Run Maigret</button>
+        <div id="results"></div>
     </div>
     <script>
-        document.getElementById('searchForm').addEventListener('submit', async function(event) {
-            event.preventDefault();
+        async function runMaigret() {
             const username = document.getElementById('username').value;
-            const resultsDiv = document.getElementById('results');
-            resultsDiv.innerHTML = "Running Maigret... Please wait.";
-
-            try {
-                const response = await fetch(`/run_maigret?username=${encodeURIComponent(username)}`);
-                const data = await response.json();
-
-                if (response.ok) {
-                    resultsDiv.innerHTML = `
-                        <p>${data.message}</p>
-                        <a href="${data.html_report}" class="btn btn-primary" target="_blank">Download HTML Report</a>
-                        <a href="${data.pdf_report}" class="btn btn-primary" target="_blank">Download PDF Report</a>
-                    `;
-                } else {
-                    resultsDiv.innerHTML = `<p>Error: ${data}</p>`;
-                }
-            } catch (error) {
-                resultsDiv.innerHTML = `<p>Error running Maigret: ${error.message}</p>`;
+            if (!username) {
+                alert("Please enter a username.");
+                return;
             }
-        });
+            const results = document.getElementById('results');
+            results.innerHTML = '<p class="text-info">Running Maigret...</p>';
+            try {
+                const response = await fetch(`/run_maigret?username=${username}`);
+                const data = await response.json();
+                if (!response.ok) {
+                    results.innerHTML = `<div class="alert alert-danger">
+                        Error: ${data.error || "An unknown error occurred."}
+                    </div>`;
+                    return;
+                }
+                results.innerHTML = `
+                    <div class="alert alert-success">
+                        <strong>Maigret execution successful!</strong><br>
+                        <a href="${data.html_report}" target="_blank">View HTML Report</a><br>
+                        <a href="${data.pdf_report}" target="_blank">Download PDF Report</a>
+                    </div>`;
+            } catch (error) {
+                console.error("Error:", error);
+                results.innerHTML = '<div class="alert alert-danger">Unexpected error occurred.</div>';
+            }
+        }
     </script>
 </body>
 </html>
