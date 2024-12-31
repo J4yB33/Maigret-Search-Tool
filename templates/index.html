@@ -3,97 +3,118 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Maigret Web Interface</title>
-    <link rel="icon" href="/static/lcnr.jpg" type="image/jpg">
+    <title>Maigret Web Scanner</title>
+    <link rel="icon" href="{{ url_for('static', filename='lcnr.jpg') }}" type="image/jpeg">
     <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
     <style>
         body {
             background-color: #2b2b2b;
             color: #ffffff;
-            padding: 20px;
             display: flex;
             align-items: center;
             justify-content: center;
             height: 100vh;
+            margin: 0;
             font-family: Arial, sans-serif;
         }
-
         .container {
             background-color: #1a1a1a;
-            color: #00baff;
             border-radius: 8px;
             box-shadow: 0 0 20px rgba(0, 186, 255, 0.7);
             padding: 40px;
-            max-width: 600px;
+            max-width: 500px;
             width: 100%;
             text-align: center;
         }
-
+        h1 {
+            color: #00baff;
+            margin-bottom: 20px;
+        }
         .btn-primary {
             background-color: #00baff;
             border-color: #00baff;
         }
-
         .btn-primary:hover {
             background-color: #008fc4;
             border-color: #008fc4;
         }
-
         .logo {
-            max-height: 80px;
+            max-height: 100px;
             margin-bottom: 20px;
         }
-
         .footer {
-            text-align: center;
             margin-top: 20px;
             color: #00baff;
+            font-size: 14px;
         }
-
-        .alert-danger, .alert-success {
-            margin-top: 20px;
+        .footer a {
+            color: #00baff;
+            text-decoration: none;
+        }
+        .footer a:hover {
+            text-decoration: underline;
+        }
+        .spinner {
+            display: none;
+            margin: 20px auto;
+            border: 5px solid #f3f3f3;
+            border-top: 5px solid #00baff;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
         }
     </style>
 </head>
 <body>
     <div class="container">
-        <img src="/static/lcnr.jpg" alt="Logo" class="logo">
-        <h1 class="mb-4">Maigret Web Interface</h1>
-        <p>Run OSINT analysis with Maigret for a given username.</p>
-        <div class="form-group">
-            <input type="text" class="form-control" id="username" placeholder="Enter username" required>
+        <img src="{{ url_for('static', filename='lcnr.jpg') }}" alt="Logo" class="logo">
+        <h1>Maigret Web Scanner</h1>
+        <p>Enter a username below to run a scan and generate reports.</p>
+        <form id="scan-form">
+            <div class="form-group">
+                <input type="text" id="username" class="form-control" placeholder="Enter username" required>
+            </div>
+            <button type="button" class="btn btn-primary btn-block" onclick="runScan()">Run Scan</button>
+        </form>
+        <div class="spinner" id="loading-spinner"></div>
+        <div id="results" class="mt-4"></div>
+        <div class="footer">
+            <p>For support, contact <a href="mailto:support@lcnr.solutions">support@lcnr.solutions</a></p>
         </div>
-        <button class="btn btn-primary btn-block" onclick="runMaigret()">Run Maigret</button>
-        <div id="results"></div>
     </div>
+
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script>
-        async function runMaigret() {
-            const username = document.getElementById('username').value;
+        function runScan() {
+            const username = $('#username').val().trim();
             if (!username) {
-                alert("Please enter a username.");
+                alert('Please enter a username.');
                 return;
             }
-            const results = document.getElementById('results');
-            results.innerHTML = '<p class="text-info">Running Maigret...</p>';
-            try {
-                const response = await fetch(`/run_maigret?username=${username}`);
-                const data = await response.json();
-                if (!response.ok) {
-                    results.innerHTML = `<div class="alert alert-danger">
-                        Error: ${data.error || "An unknown error occurred."}
-                    </div>`;
-                    return;
+
+            $('#loading-spinner').show();
+            $('#results').html('');
+
+            $.get(`/run_maigret?username=${encodeURIComponent(username)}`, function (data) {
+                $('#loading-spinner').hide();
+                if (data.success) {
+                    $('#results').html(`
+                        <p>Scan completed for username: <strong>${username}</strong></p>
+                        <a href="/static/${data.html_report}" class="btn btn-success btn-block" target="_blank">View HTML Report</a>
+                        <a href="/static/${data.pdf_report}" class="btn btn-danger btn-block" target="_blank">Download PDF Report</a>
+                    `);
+                } else {
+                    $('#results').html(`<p class="text-danger">Error: ${data.error}</p>`);
                 }
-                results.innerHTML = `
-                    <div class="alert alert-success">
-                        <strong>Maigret execution successful!</strong><br>
-                        <a href="${data.html_report}" target="_blank">View HTML Report</a><br>
-                        <a href="${data.pdf_report}" target="_blank">Download PDF Report</a>
-                    </div>`;
-            } catch (error) {
-                console.error("Error:", error);
-                results.innerHTML = '<div class="alert alert-danger">Unexpected error occurred.</div>';
-            }
+            }).fail(function () {
+                $('#loading-spinner').hide();
+                $('#results').html(`<p class="text-danger">An error occurred. Please try again later.</p>`);
+            });
         }
     </script>
 </body>
