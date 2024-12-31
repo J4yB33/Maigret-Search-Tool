@@ -1,4 +1,4 @@
-# **Maigret Web Scanner**
+# **Maigret Username Scanner**
 
 This repository contains a web-based interface for the **Maigret** tool, a powerful open-source username enumeration and reconnaissance tool. With this web app, users can input a username and generate detailed **HTML** and **PDF** reports showing results from Maigret’s scan of thousands of platforms.
 
