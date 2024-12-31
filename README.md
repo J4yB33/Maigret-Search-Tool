@@ -95,6 +95,9 @@ Generated reports include:
 - **HTML Report**: An interactive, browser-friendly summary.
 - **PDF Report**: A downloadable version for offline use or sharing.
 
+![Screenshot 2024-12-31 at 10 06 38](https://github.com/user-attachments/assets/56219b55-74aa-4f9b-bf90-8541453db48b)
+
+
 ---
 
 ## **Advanced Options**
